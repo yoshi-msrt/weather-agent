@@ -1,0 +1,25 @@
+name: Weather Agent (No AI)
+
+on:
+  workflow_dispatch:        # ← 手動実行できる
+  schedule:
+    - cron: "0 0 * * *"     # ← 毎日 00:00 UTC = 09:00 JST
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: python -m pip install --upgrade pip requests certifi urllib3
+
+      - name: Run agent
+        run: python weather_agent.py
+        env:
+          OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
+          CITY: Tokyo,jp
