@@ -1,7 +1,11 @@
-import certifi_win32
+# OSごとに安全に動くインポート
+try:
+    import certifi_win32  # Windows なら有効化、Linux/Macでは存在しなくてもOK
+except Exception:
+    pass
+
 import os
 import requests
-import certifi
 from datetime import datetime
 
 API_KEY = os.getenv("OPENWEATHER_API_KEY")
