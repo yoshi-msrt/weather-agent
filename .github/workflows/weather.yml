@@ -1,16 +1,16 @@
 name: Weather Agent (No AI)
 
 on:
-  workflow_dispatch:          # ← 手動実行
+  workflow_dispatch:
   schedule:
-    - cron: "0 0 * * *"       # ← 毎日 00:00 UTC = 09:00 JST
+    - cron: "0 0 * * *"          # 毎日 09:00 JST（UTC 0:00）
 
 jobs:
   run:
     runs-on: ubuntu-latest
-    # Node 24 へ明示的にオプトイン（警告の沈静化）
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+      TZ: Asia/Tokyo
 
     steps:
       - name: Checkout
@@ -21,28 +21,42 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Show environment (diagnostics)
-        run: |
-          echo "Python path: $(which python)"
-          python --version
-          echo "Repo files:"
-          ls -la
-          echo ".github/workflows content:"
-          ls -la .github/workflows || true
-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip requests certifi urllib3
-          python -c "import requests, certifi, urllib3; print('requests', requests.__version__, '| certifi', certifi.__version__)"
 
       - name: Run agent
+        id: run_agent_out
         env:
           OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
-          CITY: Fukuoka,jp
+          CITY: Fukuoka,jp               # ← 福岡指定
         run: |
-          # 事前チェック：APIキーが空なら失敗にする
           if [ -z "${OPENWEATHER_API_KEY}" ]; then
             echo "ERROR: OPENWEATHER_API_KEY secret is not set." >&2
             exit 1
           fi
-          python weather_agent.py
+          python weather_agent.py | tee agent_output.txt
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          cat agent_output.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Send email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.SMTP_SERVER }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "【天気エージェント】本日の天気（${{ env.CITY }}）"
+          to: ${{ secrets.TO_EMAIL }}
+          from: ${{ secrets.FROM_EMAIL }}
+          content_type: text/plain; charset=UTF-8
+          body: |
+            実行レポート（${{ github.run_id }}）
+            リポジトリ: ${{ github.repository }}
+            ブランチ: ${{ github.ref_name }}
+
+            --- 出力（抜粋） ---
+            ${{ steps.run_agent_out.outputs.body }}
+        env:
+          CITY: Fukuoka,jp
