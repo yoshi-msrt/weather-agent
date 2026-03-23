@@ -1,25 +1,48 @@
 name: Weather Agent (No AI)
 
 on:
-  workflow_dispatch:        # ← 手動実行できる
+  workflow_dispatch:          # ← 手動実行
   schedule:
-    - cron: "0 0 * * *"     # ← 毎日 00:00 UTC = 09:00 JST
+    - cron: "0 0 * * *"       # ← 毎日 00:00 UTC = 09:00 JST
 
 jobs:
   run:
     runs-on: ubuntu-latest
+    # Node 24 へ明示的にオプトイン（警告の沈静化）
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - run: python -m pip install --upgrade pip requests certifi urllib3
+      - name: Show environment (diagnostics)
+        run: |
+          echo "Python path: $(which python)"
+          python --version
+          echo "Repo files:"
+          ls -la
+          echo ".github/workflows content:"
+          ls -la .github/workflows || true
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip requests certifi urllib3
+          python -c "import requests, certifi, urllib3; print('requests', requests.__version__, '| certifi', certifi.__version__)"
 
       - name: Run agent
-        run: python weather_agent.py
         env:
           OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
-          CITY: Tokyo,jp
+          CITY: Fukuoka,jp
+        run: |
+          # 事前チェック：APIキーが空なら失敗にする
+          if [ -z "${OPENWEATHER_API_KEY}" ]; then
+            echo "ERROR: OPENWEATHER_API_KEY secret is not set." >&2
+            exit 1
+          fi
+          python weather_agent.py
