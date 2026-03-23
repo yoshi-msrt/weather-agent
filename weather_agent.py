@@ -7,6 +7,7 @@ except Exception:
 import os
 import requests
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 # certifi は存在すれば使う（Linux/MacではなくてもOK）
 try:
@@ -57,4 +58,5 @@ print()
 print("🧠 判断コメント")
 print(comment)
 print()
-print(f"実行時刻：{datetime.now().isoformat(timespec='seconds')}")
+
+print(f"実行時刻（JST）：{datetime.now(ZoneInfo('Asia/Tokyo')).isoformat(timespec='seconds')}")
